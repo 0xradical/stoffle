@@ -6,3 +6,4 @@ ruby "3.1.2"
 
 gem "test-unit"
 gem "rake"
+gem "pry"
