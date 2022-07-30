@@ -1,12 +1,14 @@
+require_relative "./location"
+
 module Stoffle
   class Lexer
-    attr_accessor :next_p, :lexeme_start_p
+    attr_accessor :next_p, :lexeme_start_p, :tokens, :line
     attr_reader :source
 
-    WHITESPACE = [" ", "\n", "\t"]
+    WHITESPACE = [" ", "\t"]
     ONE_CHAR_LEX = [
-      "(", ":", ",", ".", "+",
-      "-", "*", "/", '"', '#'
+      "(", ":", ",", ".", "+", ")",
+      "-", "*", "/", '"', '#',"\n"
     ]
     ONE_OR_TWO_CHAR_LEX = [
       "=", "!", ">", "<"
@@ -21,6 +23,7 @@ module Stoffle
 
     def initialize(source)
       @source = source
+      @length = source.length
       @tokens = []
       @line = 0
       @next_p = 0
@@ -33,6 +36,24 @@ module Stoffle
       end
 
       tokens << Token.new(:eof, '', nil, after_source_end_location)
+    end
+
+    def source_uncompleted?
+      @length > @lexeme_start_p + 1
+    end
+
+    def token_from_one_char_lex(c)
+      Token.new(c.to_sym, c, nil, current_location)
+    end
+
+    def token_from_one_or_two_char_lex(c)
+      if lookahead == "="
+        lexeme = c + consume
+      else
+        lexeme = c
+      end
+
+      Token.new(lexeme.to_sym, lexeme, nil, current_location)
     end
 
     def tokenize
@@ -66,15 +87,15 @@ module Stoffle
         end
 
       if token
-        tokens << token
+        self.tokens << token
       else
-        raise("Unknown character")
+        raise("Unknown character: #{c}")
       end
     end
 
     def lookahead(offset = 1)
       lookahead_p = (next_p - 1) + offset
-      return "\0" if lookahead_p >= source.length
+      return "\0" if lookahead_p >= @length
 
       source[lookahead_p]
     end
@@ -90,7 +111,15 @@ module Stoffle
     end
 
     def alpha_numeric?(character)
-      character =~ /\A[[:alnum:]]\Z/
+      character =~ /\A[[:alnum:]_]\Z/
+    end
+
+    def current_location
+      Location.new(@line, @lexeme_start_p, @next_p - @lexeme_start_p + 1)
+    end
+
+    def after_source_end_location
+      Location.new(@line, @next_p, 0)
     end
 
     def string
@@ -108,6 +137,10 @@ module Stoffle
       literal = source[(lexeme_start_p + 1)..(next_p - 2)]
 
       Token.new(:string, lexeme, literal, current_location)
+    end
+
+    def consume_digits
+      consume while digit?(lookahead)
     end
 
     def number
