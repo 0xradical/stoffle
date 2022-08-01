@@ -36,6 +36,8 @@ module Stoffle
       end
 
       tokens << Token.new(:eof, '', nil, after_source_end_location)
+
+      tokens
     end
 
     def source_uncompleted?
